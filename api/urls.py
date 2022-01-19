@@ -10,7 +10,8 @@ router.register(r'images', views.ImageViewSet, basename='images')
 
 urlpatterns = [
     path('drafts/', views.DraftList.as_view()),
-    path('discover/', views.Discover.as_view())
+    path('discover/', views.Discover.as_view()),
+    path('follow/', views.FollowToggle.as_view())
 ]
 
 urlpatterns += router.urls
