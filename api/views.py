@@ -1,11 +1,30 @@
 from django.http import Http404
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, viewsets, permissions
+from rest_framework import viewsets, permissions
 from rest_framework.permissions import IsAuthenticated
-from .models import Album, Tag
+from .models import Album, Image, Tag
 from .serializers import AlbumSerializer, ImageSerializer, TagSerializer
 from api import serializers
+
+
+class Discover(APIView):
+    '''
+    Returns albums associated with tags used by the user
+    '''
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request):
+        tags = set()
+        albums = Album.objects.filter(owner=request.user, is_published=True)
+        recommanded_albums = None
+        for album in albums:
+            for tag in album.tags.all():
+                tags.add(tag.title)
+        recommanded_albums = Album.objects.filter(
+            tags__title__in=tags).distinct()
+        serializer = AlbumSerializer(recommanded_albums, many=True)
+        return Response(serializer.data)
 
 
 class DraftList(APIView):
@@ -29,6 +48,15 @@ class IsOwner(permissions.BasePermission):
 class TagViewSet(viewsets.ModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
+
+
+class ImageViewSet(viewsets.ModelViewSet):
+    serializer_class = ImageSerializer
+    permission_class = [IsAuthenticated, IsOwner]
+
+    def get_queryset(self):
+        user = self.request.user
+        return Image.objects.filter(owner=user)
 
 
 class AlbumViewSet(viewsets.ModelViewSet):
