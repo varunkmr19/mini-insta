@@ -51,6 +51,8 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     # django rest_auth
     'dj_rest_auth',
+    # swagger
+    'drf_spectacular',
     # custom apps
     'api'
 ]
@@ -58,11 +60,18 @@ INSTALLED_APPS = [
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',
-    ]
+    ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema'
 }
 
 SITE_ID = 1
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Mini Insta API',
+    'DESCRIPTION': 'Demo Application for Assignment',
+    'VERSION': '1.0.0',
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
