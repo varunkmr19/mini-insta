@@ -107,6 +107,22 @@ class AlbumViewSet(viewsets.ModelViewSet):
 
             album_obj.tags.add(tag_obj)
 
+        album_obj.images.clear()
+        for image in data.get('images'):
+            try:
+                image_obj = Image.objects.get(pk=image.get('id'))
+            except Image.DoesNotExist:
+                # create new image object
+                image_obj = Image.objects.create(
+                    caption=image.get('caption'),
+                    caption_color=image.get('caption_color'),
+                    caption_position=image.get('caption_position'),
+                    source=image.get('source'),
+                    owner=request.user
+                )
+                image_obj.save()
+            album_obj.images.add(image_obj)
+
         album_obj.save()
         serializer = AlbumSerializer(album_obj)
 
