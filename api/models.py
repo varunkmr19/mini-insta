@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 
 
 class Tag(models.Model):
-    title = models.CharField(max_length=128)
+    title = models.CharField(max_length=128, unique=True)
 
     def __str__(self):
         return self.title
@@ -25,9 +25,9 @@ class Image(models.Model):
 class Album(models.Model):
     name = models.CharField(max_length=255)
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
-    images = models.ManyToManyField(Image)
+    images = models.ManyToManyField(Image, blank=True)
     is_published = models.BooleanField(default=False)
-    tags = models.ManyToManyField(Tag)
+    tags = models.ManyToManyField(Tag, blank=True)
 
     def __str__(self):
         return self.name
