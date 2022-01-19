@@ -1,10 +1,11 @@
 from django.http import Http404
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, viewsets, permissions
 from rest_framework.permissions import IsAuthenticated
 from .models import Album, Tag
 from .serializers import AlbumSerializer, ImageSerializer, TagSerializer
+from api import serializers
 
 
 class DraftList(APIView):
@@ -20,67 +21,65 @@ class DraftList(APIView):
         return Response(serializer.data)
 
 
-class AlbumList(APIView):
-    """
-    List all existing albums of a user, or create a new album.
-    """
-    permission_classes = (IsAuthenticated,)
-
-    def get(self, request):
-        albums = Album.objects.filter(owner=request.user)
-        serializer = AlbumSerializer(albums, many=True)
-        return Response(serializer.data)
-
-    def post(self, request):
-        serializer = AlbumSerializer(
-            data=request.data, context={'request': request})
-        if serializer.is_valid():
-            serializer.save(owner=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class IsOwner(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return obj.owner == request.user
 
 
-class AlbumDetailView(APIView):
-    """
-    Retrieve, update or delete an album instance.
-    """
-    permission_classes = (IsAuthenticated,)
+class TagViewSet(viewsets.ModelViewSet):
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
 
-    def get_object(self, pk):
-        try:
-            return Album.objects.get(pk=pk)
-        except Album.DoesNotExist:
-            raise Http404
 
-    def get(self, request, pk):
-        album = self.get_object(pk)
+class AlbumViewSet(viewsets.ModelViewSet):
+    serializer_class = AlbumSerializer
+    permission_class = [IsAuthenticated, IsOwner]
+
+    def get_queryset(self):
+        user = self.request.user
+        return Album.objects.filter(owner=user)
+
+    def create(self, request, *args, **kwargs):
+        data = request.data
+        album = Album.objects.create(name=data.get('name'), owner=request.user)
+        album.save()
+
+        for tag in data.get('tags'):
+            try:
+                tag_obj = Tag.objects.get(title=tag.get('title'))
+            except Tag.DoesNotExist:
+                # create new tag
+                tag_obj = Tag.objects.create(
+                    title=tag.get('title')
+                )
+                tag_obj.save()
+
+            album.tags.add(tag_obj)
+
         serializer = AlbumSerializer(album)
         return Response(serializer.data)
 
-    def put(self, request, pk):
-        album = self.get_object(pk)
-        serializer = AlbumSerializer(
-            album, data=request.data, context={'request': request})
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors)
+    def update(self, request, *args, **kwargs):
+        album_obj = self.get_object()
+        data = request.data
 
-    def delete(self, request, pk):
-        album = self.get_object(pk)
-        album.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        album_obj.name = data.get('name')
+        album_obj.owner = request.user
 
+        album_obj.tags.clear()
+        for tag in data.get('tags'):
+            try:
+                tag_obj = Tag.objects.get(title=tag.get('title'))
+            except Tag.DoesNotExist:
+                # create new tag
+                tag_obj = Tag.objects.create(
+                    title=tag.get('title')
+                )
+                tag_obj.save()
 
-class TagList(APIView):
-    def get(self, request):
-        tags = Tag.objects.all()
-        serializer = TagSerializer(tags, many=True)
+            album_obj.tags.add(tag_obj)
+
+        album_obj.save()
+        serializer = AlbumSerializer(album_obj)
+
         return Response(serializer.data)
-
-    def post(self, request):
-        serializer = TagSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

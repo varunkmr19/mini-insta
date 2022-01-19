@@ -2,11 +2,9 @@ from rest_framework import serializers
 from .models import Album, Image, Tag
 
 
-class AlbumSerializer(serializers.ModelSerializer):
-    owner = serializers.HiddenField(default=serializers.CurrentUserDefault())
-
+class TagSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Album
+        model = Tag
         fields = '__all__'
 
 
@@ -16,7 +14,11 @@ class ImageSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class TagSerializer(serializers.ModelSerializer):
+class AlbumSerializer(serializers.ModelSerializer):
+    owner = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    tags = TagSerializer(many=True)
+    images = ImageSerializer(many=True)
+
     class Meta:
-        model = Tag
+        model = Album
         fields = '__all__'
