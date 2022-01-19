@@ -1,9 +1,9 @@
-from django.http import Http404
+from django.contrib.auth.models import User
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import viewsets, permissions
 from rest_framework.permissions import IsAuthenticated
-from .models import Album, Image, Tag
+from .models import Album, Image, Relationship, Tag
 from .serializers import AlbumSerializer, ImageSerializer, TagSerializer
 from api import serializers
 
@@ -25,6 +25,33 @@ class Discover(APIView):
             tags__title__in=tags).distinct()
         serializer = AlbumSerializer(recommanded_albums, many=True)
         return Response(serializer.data)
+
+
+class FollowToggle(APIView):
+    '''
+    Follow or Unfollow Someone
+    '''
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request):
+        try:
+            # user which we want to follow
+            following = User.objects.get(pk=request.data.get('user_id'))
+            follower = request.user
+
+            if Relationship.objects.filter(follower=follower, followed=following).exists():
+                # unfollow
+                obj = Relationship.objects.get(
+                    follower=follower, followed=following)
+                obj.delete()
+                return Response({"message": "Stopped following"})
+            else:
+                newFollower = Relationship.objects.create(
+                    follower=follower, followed=following)
+                newFollower.save()
+                return Response({"message": "Started following"})
+        except User.DoesNotExist:
+            return Response({"message": "User doesn't exist"})
 
 
 class DraftList(APIView):
@@ -106,6 +133,22 @@ class AlbumViewSet(viewsets.ModelViewSet):
                 tag_obj.save()
 
             album_obj.tags.add(tag_obj)
+
+        album_obj.images.clear()
+        for image in data.get('images'):
+            try:
+                image_obj = Image.objects.get(pk=image.get('id'))
+            except Image.DoesNotExist:
+                # create new image object
+                image_obj = Image.objects.create(
+                    caption=image.get('caption'),
+                    caption_color=image.get('caption_color'),
+                    caption_position=image.get('caption_position'),
+                    source=image.get('source'),
+                    owner=request.user
+                )
+                image_obj.save()
+            album_obj.images.add(image_obj)
 
         album_obj.save()
         serializer = AlbumSerializer(album_obj)
